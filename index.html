@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <!--
   CHÍCHAROS MÁGICOS · Liquits
+  v1.2.1 — corrige eco de eventos táctiles en iOS que perdía la jarra al tomarla
   v1.2 — la cámara no baja sola con la jarra; cambiar de herramienta pierde la jarra
   v1.1 — jarra por toque (tocar jarra → tocar maceta), sin arrastre; versionado visible
   v1.0 — bestiario progresivo (mosca, escarabajo, libélula, egipcio), Donovan y victoria,
@@ -146,7 +147,7 @@
 </div>
 
 <script>
-const VERSION = 'v1.2';
+const VERSION = 'v1.2.1';
 /* ══════════════════════════════════════════════════════════
    CHÍCHAROS MÁGICOS · minijuego Liquits
    ── CFG: todos los tiempos y dificultad se ajustan aquí ──
@@ -576,18 +577,27 @@ function nuevoEgipcio(){
 }
 
 /* ─── entrada: scroll vertical, taps, arrastre de jarra ─── */
-let toque = null;
+let toque = null, ultimoTouch = 0;
+function esEcoDeMouse(e){
+  // iOS dispara mousedown/mouseup sintéticos después de cada toque: ignorarlos
+  if(e.type.startsWith('touch')){ ultimoTouch = performance.now(); return false; }
+  return performance.now() - ultimoTouch < 800;
+}
 function posEvento(e){
   const t = e.touches && e.touches.length ? e.touches[0] : (e.changedTouches && e.changedTouches.length ? e.changedTouches[0] : e);
   return {x:t.clientX, y:t.clientY};
 }
 function abajo(e){
+  if(esEcoDeMouse(e)) return;
   if(!S.jugando) return;
   const p = posEvento(e);
   const slot = $('slotJarra').getBoundingClientRect();
   const sobreSlot = p.x>=slot.left-10 && p.x<=slot.right+10 && p.y>=slot.top-10 && p.y<=slot.bottom+10;
   // tocar la jarra la selecciona como herramienta activa (o la cancela)
   if(S.jarraLista && sobreSlot){
+    const ahora = performance.now();
+    if(ahora - (S._tSlotJarra||0) < 400) return; // anti doble disparo
+    S._tSlotJarra = ahora;
     if(S.jarraEnMano) perderJarra(); else tomarJarra();
     return;
   }
@@ -622,6 +632,7 @@ function mover(e){
   }
 }
 function arriba(e){
+  if(esEcoDeMouse(e)) return;
   if(!toque) return;
   if(!toque.movido && performance.now()-toque.t < 400) tap(toque.x0, toque.y0);
   toque=null;
