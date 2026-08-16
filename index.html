@@ -1,4 +1,11 @@
 <!DOCTYPE html>
+<!--
+  CHÍCHAROS MÁGICOS · Liquits
+  v1.2 — la cámara no baja sola con la jarra; cambiar de herramienta pierde la jarra
+  v1.1 — jarra por toque (tocar jarra → tocar maceta), sin arrastre; versionado visible
+  v1.0 — bestiario progresivo (mosca, escarabajo, libélula, egipcio), Donovan y victoria,
+         cielos por nivel, SFX + foley de armas, audio a prueba de modo silencio iOS
+-->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -58,8 +65,6 @@
   #nombreHerr{position:absolute;bottom:92px;right:10px;color:#fff;font-weight:800;font-size:12px;letter-spacing:1px;text-shadow:0 2px 4px rgba(0,0,0,.6);background:rgba(74,29,99,.85);padding:3px 10px;border-radius:8px;z-index:10}
 
   /* ───── jarra arrastrable ───── */
-  #jarraDrag{position:absolute;z-index:30;width:64px;height:76px;pointer-events:none;display:none;filter:drop-shadow(0 6px 10px rgba(0,0,0,.4))}
-  #jarraDrag svg{width:100%;height:100%}
 
   /* ───── overlays ───── */
   .overlay{position:absolute;inset:0;z-index:50;background:rgba(43,13,61,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:#fff;text-align:center;padding:24px;overflow-y:auto}
@@ -102,7 +107,6 @@
   <div class="btnUI flecha" id="flechaDer">▶</div>
 </div>
 
-<div id="jarraDrag"></div>
 <div id="avisoNivel"></div>
 
 <!-- pantalla de inicio -->
@@ -110,9 +114,10 @@
   <h1>CHÍCHAROS<br>MÁGICOS</h1>
   <div class="hint"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="12" fill="#9BD44B"/><circle cx="16" cy="15" r="4" fill="#CBEE8A"/></svg><span>Atrapa los chícharos con la <b>RED</b> antes de que los insectos se los coman.</span></div>
   <div class="hint"><svg viewBox="0 0 40 40"><rect x="8" y="4" width="24" height="20" rx="4" fill="#FF6B57"/><rect x="17" y="24" width="6" height="14" rx="3" fill="#FF6B57"/></svg><span><b>Cada nivel despierta un insecto nuevo</b> con su propia arma. Si usas la equivocada, el juego te dice cuál va.</span></div>
-  <div class="hint"><svg viewBox="0 0 40 40"><path d="M10 8 h16 v24 a4 4 0 0 1-4 4 h-8 a4 4 0 0 1-4-4 z" fill="#fff" opacity=".9"/><rect x="8" y="6" width="20" height="7" rx="3" fill="#8B4BAF"/><rect x="12" y="16" width="12" height="16" fill="#FF7A2F"/></svg><span>Cuando brille la <b>JARRA</b>, tócala para tomarla y suéltala sobre la maceta: la planta crece.</span></div>
+  <div class="hint"><svg viewBox="0 0 40 40"><path d="M10 8 h16 v24 a4 4 0 0 1-4 4 h-8 a4 4 0 0 1-4-4 z" fill="#fff" opacity=".9"/><rect x="8" y="6" width="20" height="7" rx="3" fill="#8B4BAF"/><rect x="12" y="16" width="12" height="16" fill="#FF7A2F"/></svg><span>Cuando brille la <b>JARRA</b>, tócala y luego toca la maceta: la planta crece.</span></div>
   <p>Desliza para subir y bajar por la planta. Toca el radar para saltar a otra altura. Si la planta llega hasta arriba, pasas de nivel.</p>
   <div class="btnUI" id="btnJugar">JUGAR</div>
+  <p id="verLabel" style="opacity:.45;font-size:12px;letter-spacing:1px"></p>
 </div>
 
 <!-- ficha entre niveles -->
@@ -141,6 +146,7 @@
 </div>
 
 <script>
+const VERSION = 'v1.2';
 /* ══════════════════════════════════════════════════════════
    CHÍCHAROS MÁGICOS · minijuego Liquits
    ── CFG: todos los tiempos y dificultad se ajustan aquí ──
@@ -230,7 +236,7 @@ const S = {
   peas:[], bichos:[], fx:[],
   herr:0,
   tPea:2, tMosca:3, tEscarabajo:10, tLib:8, tEgi:14, tJarra:6,
-  jarraLista:false, jarraTimer:0, arrastrandoJarra:false, jarraEnMano:false,
+  jarraLista:false, jarraTimer:0, jarraEnMano:false,
   tPajaro:2, tGrillo:1,
   musica:true, tiempo:0, rota:null, donovan:null,
 };
@@ -509,8 +515,8 @@ function ponerHerramienta(){
   $('nombreHerr').textContent = h.nombre;
   beep(300+S.herr*80,.06,'triangle',.08);
 }
-$('flechaIzq').onclick = ()=>{ const n=herrActivas().length; S.herr=(S.herr+n-1)%n; ponerHerramienta(); };
-$('flechaDer').onclick = ()=>{ const n=herrActivas().length; S.herr=(S.herr+1)%n; ponerHerramienta(); };
+$('flechaIzq').onclick = ()=>{ if(S.jarraEnMano) perderJarra(); const n=herrActivas().length; S.herr=(S.herr+n-1)%n; ponerHerramienta(); };
+$('flechaDer').onclick = ()=>{ if(S.jarraEnMano) perderJarra(); const n=herrActivas().length; S.herr=(S.herr+1)%n; ponerHerramienta(); };
 $('btnMusica').onclick = ()=>{ S.musica=!S.musica; $('btnMusica').textContent = S.musica?'♪ ON':'♪ OFF'; };
 $('btnSalir').onclick = ()=>{ guardar(); $('resumenSalida').textContent = S.chicharos+' chícharos · nivel '+S.nivel; $('salida').classList.remove('oculto'); S.jugando=false; };
 $('btnVolver').onclick = ()=>{ $('salida').classList.add('oculto'); S.jugando=true; };
@@ -580,33 +586,33 @@ function abajo(e){
   const p = posEvento(e);
   const slot = $('slotJarra').getBoundingClientRect();
   const sobreSlot = p.x>=slot.left-10 && p.x<=slot.right+10 && p.y>=slot.top-10 && p.y<=slot.bottom+10;
-  // tocar la jarra la toma (o la devuelve si ya estaba en mano)
+  // tocar la jarra la selecciona como herramienta activa (o la cancela)
   if(S.jarraLista && sobreSlot){
-    if(S.jarraEnMano){ devolverJarra(); return; }
-    S.jarraEnMano = true;
-    const j=$('jarraDrag'); j.innerHTML=SVG.jarra; j.style.display='block';
-    moverJarra(p);
-    beep(560,.08); fxTexto(p.x-70,p.y+40,'LLÉVALA A LA MACETA','#FFF');
-    return;
-  }
-  // con la jarra en mano, cualquier toque la mueve contigo
-  if(S.jarraEnMano){
-    S.arrastrandoJarra = true;
-    moverJarra(p);
+    if(S.jarraEnMano) perderJarra(); else tomarJarra();
     return;
   }
   // toques sobre botones/paneles no cuentan como acción en el jardín
   if(e.target && e.target.closest && e.target.closest('.btnUI,#panelSup,#selector,#nombreHerr,.overlay')) return;
   toque = {x0:p.x, y0:p.y, x:p.x, y:p.y, cam0:S.cam, movido:false, t:performance.now()};
 }
-function devolverJarra(){
-  S.jarraEnMano=false; S.arrastrandoJarra=false;
-  $('jarraDrag').style.display='none';
+function tomarJarra(){
+  S.jarraEnMano = true;
+  $('herramienta').innerHTML = SVG.jarra;
+  $('nombreHerr').textContent = 'JARRA';
+  beep(560,.08);
+  fxTexto(ejePlanta(), H-GRASS-150, 'BAJA Y TOCA LA MACETA','#FFF');
+}
+function perderJarra(){
+  S.jarraEnMano = false;
+  S.jarraLista = false;
+  $('slotJarra').classList.remove('lista');
+  S.tJarra = CFG.JARRA_CADA;
+  ponerHerramienta();
   sndFalla();
+  fxTexto(W/2, H*0.35, 'JARRA PERDIDA…', '#FFD166');
 }
 function mover(e){
   const p = posEvento(e);
-  if(S.arrastrandoJarra){ moverJarra(p); return; }
   if(!toque) return;
   toque.x=p.x; toque.y=p.y;
   const dy = p.y - toque.y0;
@@ -616,28 +622,9 @@ function mover(e){
   }
 }
 function arriba(e){
-  if(S.arrastrandoJarra){ soltarJarra(); return; }
   if(!toque) return;
   if(!toque.movido && performance.now()-toque.t < 400) tap(toque.x0, toque.y0);
   toque=null;
-}
-function moverJarra(p){
-  const j=$('jarraDrag');
-  j.style.left=(p.x-32)+'px'; j.style.top=(p.y-38)+'px';
-}
-function soltarJarra(){
-  S.arrastrandoJarra=false;
-  const j=$('jarraDrag');
-  const jr = j.getBoundingClientRect();
-  const mx = ejePlanta(), my = aPantalla(0);
-  const sobre = Math.abs((jr.left+32)-mx)<110 && Math.abs((jr.top+38)-my)<130;
-  if(sobre){
-    S.jarraEnMano=false;
-    j.style.display='none';
-    S.jarraLista=false; $('slotJarra').classList.remove('lista'); S.tJarra=CFG.JARRA_CADA;
-    regar();
-  }
-  // si no cayó en la maceta, la jarra sigue en tu mano para reintentar
 }
 function regar(){
   sndAgua();
@@ -692,7 +679,7 @@ function mostrarFichaNivel(){
 }
 
 ['mousedown','touchstart'].forEach(ev=>addEventListener(ev,abajo,{passive:false}));
-['mousemove','touchmove'].forEach(ev=>addEventListener(ev,e=>{mover(e); if(S.jugando&&(toque||S.arrastrandoJarra))e.preventDefault();},{passive:false}));
+['mousemove','touchmove'].forEach(ev=>addEventListener(ev,e=>{mover(e); if(S.jugando&&toque)e.preventDefault();},{passive:false}));
 ['mouseup','touchend','touchcancel'].forEach(ev=>addEventListener(ev,arriba));
 addEventListener('wheel',e=>{ if(S.jugando){ S.cam=Math.min(camMax(),Math.max(0,S.cam+e.deltaY)); } },{passive:true});
 
@@ -703,6 +690,19 @@ function tap(x,y){
     const total = Math.max(metaSegs()*CFG.SEG+200, alturaPlanta()+200, H);
     const frac = 1-(y-pista.top)/pista.height;
     S.cam = Math.min(camMax(), Math.max(0, frac*total - (H-GRASS)/2));
+    return;
+  }
+  // con la jarra activa, la acción es tocar la maceta
+  if(S.jarraEnMano){
+    const mx=ejePlanta(), my=aPantalla(0);
+    if(Math.abs(x-mx)<120 && y>my-150 && y<my+120){
+      S.jarraEnMano=false;
+      S.jarraLista=false; $('slotJarra').classList.remove('lista'); S.tJarra=CFG.JARRA_CADA;
+      ponerHerramienta();
+      regar();
+    } else {
+      fxTexto(x,y,'TOCA LA MACETA','#FFF');
+    }
     return;
   }
   const act = herrActivas();
@@ -778,8 +778,6 @@ function actualizar(dt){
     else { S.tGrillo-=dt; if(S.tGrillo<=0){ sndGrillo(); S.tGrillo=rand(.7,1.6); } }
   }
 
-  // con la jarra en mano, la cámara baja suave hasta la maceta
-  if(S.jarraEnMano) S.cam += (0 - S.cam)*Math.min(1, dt*3.5);
 
   // Donovan aparece en el nivel final y trepa cuando la planta está en paz
   if(S.nivel>=CFG.NIVEL_FINAL && !S.donovan){
@@ -806,10 +804,10 @@ function actualizar(dt){
   if(S.nivel>=4){ S.tEgi-=dt; if(S.tEgi<=0){ nuevoEgipcio(); S.tEgi=tasa(CFG.EGIPCIO_CADA); } }
 
   // jarra
-  if(!S.jarraLista && !S.arrastrandoJarra){
+  if(!S.jarraLista){
     S.tJarra-=dt;
     if(S.tJarra<=0){ S.jarraLista=true; S.jarraTimer=CFG.JARRA_DURA; $('slotJarra').classList.add('lista'); beep(760,.15); }
-  } else if(S.jarraLista && !S.arrastrandoJarra && !S.jarraEnMano){
+  } else if(S.jarraLista && !S.jarraEnMano){
     S.jarraTimer-=dt;
     if(S.jarraTimer<=0){ S.jarraLista=false; $('slotJarra').classList.remove('lista'); S.tJarra=CFG.JARRA_CADA; }
   }
@@ -1320,6 +1318,7 @@ function actualizarRadar(){
 }
 
 /* ─── arranque ─── */
+$('verLabel').textContent = 'Chícharos Mágicos · '+VERSION;
 cargar().then(()=>ponerHerramienta());
 requestAnimationFrame(paso);
 </script>
