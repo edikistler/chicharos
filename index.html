@@ -258,10 +258,28 @@ function metaSegs(){ return CFG.SEGS_META_BASE + (S.nivel-1)*CFG.SEGS_META_EXTRA
 function camMax(){ return Math.max(0, alturaPlanta() + 160 - (H - GRASS - 120)); }
 
 /* ─── audio ligero (sintetizado, sin archivos) ─── */
-let AC=null;
+let AC=null, MASTER=null, mediaEl=null;
 function ensureAC(){
   try{
-    AC = AC || new (window.AudioContext||window.webkitAudioContext)();
+    if(!AC){
+      AC = new (window.AudioContext||window.webkitAudioContext)();
+      // Safari 17+: tratar el audio como reproducción (suena aun en modo silencio)
+      try{ if(navigator.audioSession) navigator.audioSession.type='playback'; }catch(e){}
+      MASTER = AC.createGain(); MASTER.gain.value=1;
+      // ruta de medios: igual que un video, iOS no la silencia con el switch
+      try{
+        const dest = AC.createMediaStreamDestination();
+        mediaEl = document.createElement('audio');
+        mediaEl.setAttribute('playsinline','');
+        mediaEl.autoplay = true;
+        mediaEl.srcObject = dest.stream;
+        document.body.appendChild(mediaEl);
+        MASTER.connect(dest);
+      }catch(e){
+        MASTER.connect(AC.destination);
+        MASTER._directo = true;
+      }
+    }
     if(AC.state!=='running') AC.resume();
   }catch(e){}
   return AC;
@@ -276,6 +294,16 @@ function despertarAudio(){
       a.resume();
     }catch(e){}
   }
+  if(mediaEl && mediaEl.paused){
+    mediaEl.play().catch(()=>{});
+    // si el elemento de medios no arranca, conectar salida directa como respaldo
+    setTimeout(()=>{
+      if(mediaEl && mediaEl.paused && MASTER && !MASTER._directo){
+        MASTER._directo = true;
+        try{ MASTER.connect(AC.destination); }catch(e){}
+      }
+    }, 800);
+  }
 }
 ['touchstart','touchend','mousedown','click','keydown'].forEach(ev=>addEventListener(ev,despertarAudio));
 function beep(f, dur=0.12, tipo='sine', vol=0.15){
@@ -286,7 +314,7 @@ function beep(f, dur=0.12, tipo='sine', vol=0.15){
     o.type=tipo; o.frequency.value=f;
     g.gain.setValueAtTime(vol, AC.currentTime);
     g.gain.exponentialRampToValueAtTime(0.001, AC.currentTime+dur);
-    o.connect(g); g.connect(AC.destination);
+    o.connect(g); g.connect(MASTER);
     o.start(); o.stop(AC.currentTime+dur);
   }catch(e){}
 }
@@ -309,7 +337,7 @@ function sndAtrapa(){
     o.frequency.exponentialRampToValueAtTime(180, AC.currentTime+.09);
     g.gain.setValueAtTime(.32, AC.currentTime);
     g.gain.exponentialRampToValueAtTime(.001, AC.currentTime+.1);
-    o.connect(g); g.connect(AC.destination);
+    o.connect(g); g.connect(MASTER);
     o.start(); o.stop(AC.currentTime+.12);
   }catch(e){}
 }
@@ -323,7 +351,7 @@ function asegurarBuzz(){
     const lg=AC.createGain(); lg.gain.value=45;
     l.connect(lg); lg.connect(o.frequency);
     const g=AC.createGain(); g.gain.value=0;
-    o.connect(g); g.connect(AC.destination);
+    o.connect(g); g.connect(MASTER);
     o.start(); l.start();
     buzz={g};
   }catch(e){}
@@ -355,7 +383,7 @@ function sndPajaro(){
       g.gain.setValueAtTime(0, t0+k*.14);
       g.gain.linearRampToValueAtTime(.045, t0+k*.14+.02);
       g.gain.exponentialRampToValueAtTime(.001, t0+k*.14+.12);
-      o.connect(g); g.connect(AC.destination);
+      o.connect(g); g.connect(MASTER);
       o.start(t0+k*.14); o.stop(t0+k*.14+.14);
     }
   }catch(e){}
@@ -371,7 +399,7 @@ function sndGrillo(){
       g.gain.setValueAtTime(0, t0+k*.05);
       g.gain.linearRampToValueAtTime(.022, t0+k*.05+.01);
       g.gain.exponentialRampToValueAtTime(.001, t0+k*.05+.045);
-      o.connect(g); g.connect(AC.destination);
+      o.connect(g); g.connect(MASTER);
       o.start(t0+k*.05); o.stop(t0+k*.05+.06);
     }
   }catch(e){}
@@ -396,7 +424,7 @@ function sndSlap(vol=.32, dur=.08, freq=1400){ // manotazo seco
     const g=AC.createGain();
     g.gain.setValueAtTime(vol, AC.currentTime);
     g.gain.exponentialRampToValueAtTime(.001, AC.currentTime+dur);
-    s.connect(f); f.connect(g); g.connect(AC.destination);
+    s.connect(f); f.connect(g); g.connect(MASTER);
     s.start(); s.stop(AC.currentTime+dur+.02);
   }catch(e){}
 }
@@ -409,7 +437,7 @@ function sndShhh(){ // aerosol del insecticida
     g.gain.setValueAtTime(.13, AC.currentTime);
     g.gain.setValueAtTime(.11, AC.currentTime+.2);
     g.gain.exponentialRampToValueAtTime(.001, AC.currentTime+.38);
-    s.connect(f); f.connect(g); g.connect(AC.destination);
+    s.connect(f); f.connect(g); g.connect(MASTER);
     s.start(); s.stop(AC.currentTime+.4);
   }catch(e){}
 }
@@ -424,7 +452,7 @@ function sndSwoosh(){ // barrida de la red
     g.gain.setValueAtTime(.001, AC.currentTime);
     g.gain.linearRampToValueAtTime(.16, AC.currentTime+.05);
     g.gain.exponentialRampToValueAtTime(.001, AC.currentTime+.19);
-    s.connect(f); f.connect(g); g.connect(AC.destination);
+    s.connect(f); f.connect(g); g.connect(MASTER);
     s.start(); s.stop(AC.currentTime+.22);
   }catch(e){}
 }
@@ -437,7 +465,7 @@ function sndElectrico(){ // chisporroteo de la raqueta + pop
       o.type='square'; o.frequency.value=2200+Math.random()*2400;
       g.gain.setValueAtTime(.11, t0+k*.028);
       g.gain.exponentialRampToValueAtTime(.001, t0+k*.028+.03);
-      o.connect(g); g.connect(AC.destination);
+      o.connect(g); g.connect(MASTER);
       o.start(t0+k*.028); o.stop(t0+k*.028+.04);
     }
     const o=AC.createOscillator(), g=AC.createGain();
@@ -446,7 +474,7 @@ function sndElectrico(){ // chisporroteo de la raqueta + pop
     o.frequency.exponentialRampToValueAtTime(150, t0+.24);
     g.gain.setValueAtTime(.25, t0+.15);
     g.gain.exponentialRampToValueAtTime(.001, t0+.26);
-    o.connect(g); g.connect(AC.destination);
+    o.connect(g); g.connect(MASTER);
     o.start(t0+.15); o.stop(t0+.28);
   }catch(e){}
 }
