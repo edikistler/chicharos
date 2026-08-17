@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <!--
   CHÍCHAROS MÁGICOS · Liquits
+  v1.6.3 — lobby con scroll en pantallas cortas (iPhone SE) y modo compacto
+  v1.6.2 — el saldo compartido ya no borra los datos de Naves de Corto Alcance
   v1.6.1 — la regla de navegación y la de herramientas se separan en dos casillas
   v1.6 — herramienta rota con un toque (sin flechas), lobby con misión y reglas
          enmarcadas, tutorial guiado (cosechar → defender → regar)
@@ -82,8 +84,20 @@
 
   /* ───── overlays ───── */
   .overlay{position:absolute;inset:0;z-index:50;background:rgba(43,13,61,.9);}
+  .overlay, .overlay *{touch-action:pan-y}
+  .overlay{justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .overlay::before,.overlay::after{content:'';margin:auto;flex:none}
+  @media (max-height:730px){
+    .overlay h1{font-size:23px!important}
+    .overlay{gap:8px!important;padding:14px!important}
+    .hint{font-size:11.5px!important;padding:6px 10px!important}
+    .hint img,.hint svg{width:30px!important;height:30px!important}
+    .mision{font-size:12px!important;padding:8px 12px!important}
+    .overlay .btnUI{font-size:15px!important;padding:10px 20px!important}
+    .overlay p{font-size:12.5px!important}
+  }
   #victoria{background:rgba(43,13,61,.45)}
-  .overlay{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:#fff;text-align:center;padding:24px;overflow-y:auto}
+  .overlay{display:flex;flex-direction:column;align-items:center;gap:16px;color:#fff;text-align:center;padding:24px}
   .overlay h1{font-size:32px;font-weight:900;letter-spacing:1px;line-height:1.1}
   .overlay h2{font-size:22px;font-weight:800;color:var(--chicharo)}
   .overlay p{font-size:14px;line-height:1.55;max-width:340px;opacity:.92}
@@ -178,7 +192,7 @@
 </div>
 
 <script>
-const VERSION = 'v1.6.1';
+const VERSION = 'v1.6.3';
 /* ══════════════════════════════════════════════════════════
    CHÍCHAROS MÁGICOS · minijuego Liquits
    ── CFG: todos los tiempos y dificultad se ajustan aquí ──
@@ -532,12 +546,17 @@ function sndUsoHerr(id){
 async function cargar(){
   try{
     const r = await window.storage.get('chicharos-balance');
-    if(r && r.value){ const d=JSON.parse(r.value); S.chicharos=d.chicharos||0; S.nivel=d.nivel||1; }
+    if(r && r.value){ const d=JSON.parse(r.value); S.chicharos=d.chicharos||0; S.nivel=d.nivel||1; S._saldoExtra=d; }
   }catch(e){}
   actualizarContador();
 }
 async function guardar(){
-  try{ await window.storage.set('chicharos-balance', JSON.stringify({chicharos:S.chicharos, nivel:S.nivel})); }catch(e){}
+  try{
+    const d = Object.assign({}, S._saldoExtra||{});
+    d.chicharos = S.chicharos; d.nivel = S.nivel;
+    S._saldoExtra = d;
+    await window.storage.set('chicharos-balance', JSON.stringify(d));
+  }catch(e){}
 }
 
 /* ─── UI ─── */
