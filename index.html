@@ -1,6 +1,11 @@
 <!DOCTYPE html>
 <!--
   CHÍCHAROS MÁGICOS · Liquits
+  v1.4 — radar por especie (mosca negra, escarabajo rojo, libélula azul, egipcio
+         dorado; pulsan al atacar), mordidas cuestan máx. 2 segmentos, la planta
+         alta produce más chícharos
+  v1.3 — balance: libélula más lenta y con pausa tras robar, tope de insectos
+         simultáneos, spawns más espaciados en niveles altos
   v1.2.1 — corrige eco de eventos táctiles en iOS que perdía la jarra al tomarla
   v1.2 — la cámara no baja sola con la jarra; cambiar de herramienta pierde la jarra
   v1.1 — jarra por toque (tocar jarra → tocar maceta), sin arrastre; versionado visible
@@ -38,7 +43,11 @@
   #radarVista{position:absolute;left:-5px;right:-5px;background:rgba(255,255,255,.22);border:1.5px solid rgba(255,255,255,.75);border-radius:6px}
   .radarDot{position:absolute;left:50%;width:10px;height:10px;border-radius:50%;transform:translate(-50%,50%)}
   .radarDot.pea{background:var(--chicharo);box-shadow:0 0 6px var(--chicharo)}
-  .radarDot.bug{background:#FF4136;box-shadow:0 0 8px #FF4136;animation:pulso .6s infinite alternate}
+  .radarDot.mosca{background:#151515;border:1.5px solid rgba(255,255,255,.75);box-shadow:0 0 5px rgba(0,0,0,.8)}
+  .radarDot.esc{background:#FF4136;box-shadow:0 0 7px #FF4136}
+  .radarDot.lib{background:#7FE3EF;box-shadow:0 0 7px #7FE3EF}
+  .radarDot.egi{background:#FFD24A;box-shadow:0 0 8px #FFD24A}
+  .radarDot.alerta{animation:pulso .5s infinite alternate}
   .radarDot.don{background:#6FC3F7;box-shadow:0 0 8px #6FC3F7;width:12px;height:12px;border:2px solid #fff}
   @keyframes pulso{from{transform:translate(-50%,50%) scale(1)}to{transform:translate(-50%,50%) scale(1.5)}}
   #radarMaceta{width:16px;height:12px;flex:none;background:#C1663F;clip-path:polygon(10% 0,90% 0,78% 100%,22% 100%);margin-bottom:4px}
@@ -147,7 +156,7 @@
 </div>
 
 <script>
-const VERSION = 'v1.2.1';
+const VERSION = 'v1.4';
 /* ══════════════════════════════════════════════════════════
    CHÍCHAROS MÁGICOS · minijuego Liquits
    ── CFG: todos los tiempos y dificultad se ajustan aquí ──
@@ -161,14 +170,18 @@ const CFG = {
   DONOVAN_VEL: 30,          // px por segundo que trepa Donovan
   PEA_CADA: [4.5, 3.5],     // seg entre chícharos nuevos [nivel1, mínimo]
   PEA_MAX: 7,               // chícharos simultáneos máximos
-  MOSCA_CADA: [7, 4],       // seg entre moscas
+  MOSCA_CADA: [8, 5],       // seg entre moscas
   ESCARABAJO_CADA: [16, 9], // seg entre escarabajos
   COMER_SEG: 4.5,           // seg que tarda una mosca en comerse un chícharo
   MORDER_SEG: 6,            // seg que tarda un escarabajo en romper la planta
   JARRA_CADA: 14,           // seg entre apariciones de la jarra
   JARRA_DURA: 9,            // seg que la jarra espera antes de irse
-  LIBELULA_CADA: [11, 6],   // seg entre libélulas (desde nivel 3)
-  EGIPCIO_CADA: [18, 10],   // seg entre escarabajos egipcios (desde nivel 4)
+  LIBELULA_CADA: [14, 8],   // seg entre libélulas (desde nivel 3)
+  EGIPCIO_CADA: [22, 12],   // seg entre escarabajos egipcios (desde nivel 4)
+  LIB_VEL: 105,             // velocidad de vuelo de la libélula
+  LIB_HUIDA: 115,           // velocidad de escape con chícharo robado
+  LIB_PAUSA: 1.0,           // seg que flota tras robar (ventana para el zap)
+  BICHOS_MAX_TOPE: 6,       // insectos simultáneos máximos absolutos
   VEL_NIVEL: 0.12,          // +12% de velocidad de juego por nivel
 };
 
@@ -547,30 +560,37 @@ const ESTRELLAS = Array.from({length:90},()=>({x:Math.random(), y:Math.random(),
 
 /* ─── spawns ─── */
 function rand(a,b){ return a+Math.random()*(b-a); }
-function tasa(base){ const [ini,min]=base; return Math.max(min, ini - (S.nivel-1)*0.7); }
+function tasa(base){ const [ini,min]=base; return Math.max(min, ini - (S.nivel-1)*0.4); }
+function bichosVivos(){ return S.bichos.filter(b=>b.estado!=='muerto').length; }
+function maxBichos(){ return Math.min(CFG.BICHOS_MAX_TOPE, 1+S.nivel); }
 function V(){ return 1 + (S.nivel-1)*CFG.VEL_NIVEL; } // velocidad global por nivel
 function nuevaPea(){
-  if(S.peas.length>=CFG.PEA_MAX) return;
+  // la planta alta admite más chícharos a la vez
+  if(S.peas.length >= CFG.PEA_MAX + Math.floor(S.segs/4)) return;
   const wy = rand(CFG.SEG*0.6, alturaPlanta()-30);
   const lado = Math.random()<.5?-1:1;
   S.peas.push({wy, lado, edad:0, r:0, id:Math.random()});
 }
 function nuevaMosca(){
+  if(bichosVivos()>=maxBichos()) return;
   const objetivo = S.peas.length? S.peas[Math.floor(Math.random()*S.peas.length)] : null;
   const wy = objetivo? objetivo.wy : rand(CFG.SEG, alturaPlanta());
   S.bichos.push({tipo:'mosca', arma:'matamoscas', x: Math.random()<.5? -60 : W+60, wy: wy+rand(-40,40),
     objetivo: objetivo?objetivo.id:null, estado:'vuela', come:0, fase:Math.random()*7, vida:0});
 }
 function nuevoEscarabajo(){
+  if(bichosVivos()>=maxBichos()) return;
   const wy = rand(CFG.SEG*0.5, alturaPlanta()-CFG.SEG*0.4);
   S.bichos.push({tipo:'escarabajo', arma:'spray', vel:80, muerdeMax:CFG.MORDER_SEG,
     x: Math.random()<.5? -80 : W+80, wy, estado:'vuela', muerde:0, fase:Math.random()*7, vida:0});
 }
 function nuevaLibelula(){
+  if(bichosVivos()>=maxBichos()) return;
   S.bichos.push({tipo:'libelula', arma:'raqueta', x: Math.random()<.5? -70 : W+70,
     wy: rand(CFG.SEG, alturaPlanta()), objetivo:null, estado:'vuela', cargando:false, fase:Math.random()*7, vida:0});
 }
 function nuevoEgipcio(){
+  if(bichosVivos()>=maxBichos()) return;
   const wy = rand(CFG.SEG*0.5, alturaPlanta()-CFG.SEG*0.4);
   S.bichos.push({tipo:'egipcio', arma:'chancla', vel:120, muerdeMax:CFG.MORDER_SEG*0.6,
     x: Math.random()<.5? -80 : W+80, wy, estado:'vuela', muerde:0, fase:Math.random()*7, vida:0});
@@ -723,7 +743,7 @@ function tap(x,y){
   for(const b of S.bichos){
     if(b.estado==='muerto') continue;
     const bx = b.x, by = aPantalla(b.wy);
-    const r = {mosca:46, libelula:52, escarabajo:58, egipcio:58}[b.tipo];
+    const r = {mosca:46, libelula:66, escarabajo:58, egipcio:58}[b.tipo];
     if((x-bx)**2+(y-by)**2 < r*r){
       if(h===b.arma){
         b.estado='muerto'; b.vida=0;
@@ -808,7 +828,7 @@ function actualizar(dt){
     if(S.segs>=metaSegs() && S.donovan.wy >= metaSegs()*CFG.SEG-60) victoria();
   }
 
-  S.tPea-=dt; if(S.tPea<=0){ nuevaPea(); S.tPea=tasa(CFG.PEA_CADA); }
+  S.tPea-=dt; if(S.tPea<=0){ nuevaPea(); S.tPea=tasa(CFG.PEA_CADA)*Math.max(0.55, 8/Math.max(8,S.segs)); }
   S.tMosca-=dt; if(S.tMosca<=0){ nuevaMosca(); S.tMosca=tasa(CFG.MOSCA_CADA); }
   if(S.nivel>=2){ S.tEscarabajo-=dt; if(S.tEscarabajo<=0){ nuevoEscarabajo(); S.tEscarabajo=tasa(CFG.ESCARABAJO_CADA); } }
   if(S.nivel>=3){ S.tLib-=dt; if(S.tLib<=0){ nuevaLibelula(); S.tLib=tasa(CFG.LIBELULA_CADA); } }
@@ -851,17 +871,21 @@ function actualizar(dt){
         if(b.vida>14) S.bichos.splice(i,1);
       }
     } else if(b.tipo==='libelula'){
-      if(b.estado!=='huye'){
+      if(b.estado==='roba'){
+        b.roba+=dt;
+        b.wy += Math.sin(b.vida*9)*10*dt; // flota un instante: ventana para el zap
+        if(b.roba>CFG.LIB_PAUSA) b.estado='huye';
+      } else if(b.estado!=='huye'){
         let obj = S.peas.find(p=>p.id===b.objetivo);
         if(!obj && S.peas.length){ obj=S.peas.reduce((a,c)=>c.r>a.r?c:a,S.peas[0]); b.objetivo=obj.id; }
         if(obj){
           const tx = ejePlanta()+obj.lado*34, dy=obj.wy-b.wy, dx=tx-b.x;
           const d = Math.hypot(dx,dy);
-          if(d>20){ b.x+=dx/d*150*V()*dt; b.wy+=dy/d*150*V()*dt; }
+          if(d>20){ b.x+=dx/d*CFG.LIB_VEL*V()*dt; b.wy+=dy/d*CFG.LIB_VEL*V()*dt; }
           else {
             const idx=S.peas.indexOf(obj);
             if(idx>=0){
-              S.peas.splice(idx,1); b.estado='huye'; b.cargando=true;
+              S.peas.splice(idx,1); b.estado='roba'; b.roba=0; b.cargando=true;
               fxTexto(b.x,aPantalla(b.wy),'¡SE LO LLEVA!','#FFD166'); beep(880,.1,'triangle',.1);
             }
             b.objetivo=null;
@@ -873,7 +897,7 @@ function actualizar(dt){
         }
       } else {
         const dir = b.x<W/2?-1:1;
-        b.x += dir*170*V()*dt;
+        b.x += dir*CFG.LIB_HUIDA*V()*dt;
         b.wy += 60*dt;
         if(b.x<RADAR_W-90||b.x>W+90) S.bichos.splice(i,1);
       }
@@ -904,7 +928,8 @@ function actualizar(dt){
 }
 function romperPlanta(wy){
   sndCrack();
-  const nuevosSegs = Math.max(1, Math.floor(wy/CFG.SEG));
+  // la planta pierde como máximo 2 segmentos por mordida
+  const nuevosSegs = Math.max(1, Math.max(Math.floor(wy/CFG.SEG), S.segs-2));
   S.rota = {wy, vida:1.2};
   S.segs = nuevosSegs;
   S.peas = S.peas.filter(p=>p.wy < nuevosSegs*CFG.SEG-20);
@@ -1250,6 +1275,12 @@ function escarabajo(t,b){
 }
 function libelula(t,b){
   const al = Math.sin(t*32+b.fase)*0.35;
+  if(b.estado==='roba'){
+    cx.globalAlpha=.4+.4*Math.sin(t*10);
+    cx.strokeStyle='#FFE24A'; cx.lineWidth=3;
+    cx.beginPath(); cx.arc(0,0,42,0,7); cx.stroke();
+    cx.globalAlpha=1;
+  }
   // cuatro alas translúcidas
   cx.fillStyle='rgba(190,240,255,.8)';
   for(const s of [-1,1]){
@@ -1324,7 +1355,12 @@ function actualizarRadar(){
     pista.appendChild(d);
   };
   for(const p of S.peas) if(p.r>=6) dot(p.wy,'pea');
-  for(const b of S.bichos) if(b.estado!=='muerto' && (b.tipo==='escarabajo'||b.tipo==='egipcio'||b.estado==='come'||b.estado==='huye')) dot(b.wy,'bug');
+  const CLASE = {mosca:'mosca', escarabajo:'esc', libelula:'lib', egipcio:'egi'};
+  for(const b of S.bichos){
+    if(b.estado==='muerto') continue;
+    const atacando = b.estado==='muerde'||b.estado==='come'||b.estado==='roba'||b.estado==='huye';
+    dot(b.wy, CLASE[b.tipo]+(atacando?' alerta':''));
+  }
   if(S.donovan) dot(S.donovan.wy,'don');
 }
 
