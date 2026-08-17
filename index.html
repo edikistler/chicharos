@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <!--
   CHÍCHAROS MÁGICOS · Liquits
+  v1.6 — herramienta rota con un toque (sin flechas), lobby con misión y reglas
+         enmarcadas, tutorial guiado (cosechar → defender → regar)
+  v1.5 — celebración final: fuegos artificiales, Donovan saltando con los brazos
+         al cielo, fanfarria y cámara ascendiendo a la cima
   v1.4 — radar por especie (mosca negra, escarabajo rojo, libélula azul, egipcio
          dorado; pulsan al atacar), mordidas cuestan máx. 2 segmentos, la planta
          alta produce más chícharos
@@ -69,7 +73,6 @@
 
   /* ───── selector de herramienta ───── */
   #selector{position:absolute;bottom:12px;right:10px;z-index:10;display:flex;align-items:center;gap:4px}
-  .flecha{width:40px;height:56px;font-size:22px;min-width:40px}
   #herramienta{width:76px;height:76px;padding:6px;min-width:76px}
   #herramienta svg{width:100%;height:100%}
   #nombreHerr{position:absolute;bottom:92px;right:10px;color:#fff;font-weight:800;font-size:12px;letter-spacing:1px;text-shadow:0 2px 4px rgba(0,0,0,.6);background:rgba(74,29,99,.85);padding:3px 10px;border-radius:8px;z-index:10}
@@ -77,11 +80,15 @@
   /* ───── jarra arrastrable ───── */
 
   /* ───── overlays ───── */
-  .overlay{position:absolute;inset:0;z-index:50;background:rgba(43,13,61,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:#fff;text-align:center;padding:24px;overflow-y:auto}
+  .overlay{position:absolute;inset:0;z-index:50;background:rgba(43,13,61,.9);}
+  #victoria{background:rgba(43,13,61,.45)}
+  .overlay{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:#fff;text-align:center;padding:24px;overflow-y:auto}
   .overlay h1{font-size:32px;font-weight:900;letter-spacing:1px;line-height:1.1}
   .overlay h2{font-size:22px;font-weight:800;color:var(--chicharo)}
   .overlay p{font-size:14px;line-height:1.55;max-width:340px;opacity:.92}
   .overlay .btnUI{font-size:18px;padding:14px 34px;border-radius:14px}
+  .mision{background:rgba(155,212,75,.14);border:2px solid var(--chicharo);border-radius:12px;padding:10px 16px;color:#E9F7D0;font-weight:700;font-size:14px;line-height:1.5;max-width:340px}
+  #tuto{position:absolute;top:64px;left:62px;right:108px;z-index:22;background:rgba(74,29,99,.94);border:2px solid var(--chicharo);border-radius:14px;color:#fff;font-weight:800;font-size:15px;line-height:1.45;padding:10px 14px;text-align:center;display:none;pointer-events:none}
   .hint{display:flex;align-items:center;gap:10px;font-size:13px;background:rgba(255,255,255,.1);border-radius:12px;padding:8px 14px;max-width:340px;text-align:left}
   .hint svg{width:34px;height:34px;flex:none}
   #avisoNivel{position:absolute;top:16%;left:50%;transform:translateX(-50%);z-index:40;background:rgba(74,29,99,.92);border:2px solid var(--chicharo);color:#fff;font-weight:900;font-size:19px;padding:12px 24px;border-radius:16px;display:none;white-space:nowrap}
@@ -112,21 +119,34 @@
 <!-- selector de herramientas -->
 <div id="nombreHerr">RED</div>
 <div id="selector">
-  <div class="btnUI flecha" id="flechaIzq">◀</div>
   <div class="btnUI" id="herramienta"></div>
-  <div class="btnUI flecha" id="flechaDer">▶</div>
 </div>
 
 <div id="avisoNivel"></div>
+<div id="tuto"></div>
+
+<!-- fin del tutorial -->
+<div class="overlay oculto" id="tutoFin">
+  <h1>¡ESO ES TODO!</h1>
+  <p>Cosechar, defender y regar: ese es el jardín. Los chícharos que ganes se guardan siempre.</p>
+  <div style="display:flex;gap:10px">
+    <div class="btnUI" id="btnTutoInicio">INICIO</div>
+    <div class="btnUI" id="btnTutoJugar">JUGAR</div>
+  </div>
+</div>
 
 <!-- pantalla de inicio -->
 <div class="overlay" id="inicio">
   <h1>CHÍCHAROS<br>MÁGICOS</h1>
+  <p class="mision">Cosecha todos los chícharos mágicos que puedas, mientras riegas la planta para llevar a Donovan al cielo.</p>
   <div class="hint"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="12" fill="#9BD44B"/><circle cx="16" cy="15" r="4" fill="#CBEE8A"/></svg><span>Atrapa los chícharos con la <b>RED</b> antes de que los insectos se los coman.</span></div>
   <div class="hint"><svg viewBox="0 0 40 40"><rect x="8" y="4" width="24" height="20" rx="4" fill="#FF6B57"/><rect x="17" y="24" width="6" height="14" rx="3" fill="#FF6B57"/></svg><span><b>Cada nivel despierta un insecto nuevo</b> con su propia arma. Si usas la equivocada, el juego te dice cuál va.</span></div>
   <div class="hint"><svg viewBox="0 0 40 40"><path d="M10 8 h16 v24 a4 4 0 0 1-4 4 h-8 a4 4 0 0 1-4-4 z" fill="#fff" opacity=".9"/><rect x="8" y="6" width="20" height="7" rx="3" fill="#8B4BAF"/><rect x="12" y="16" width="12" height="16" fill="#FF7A2F"/></svg><span>Cuando brille la <b>JARRA</b>, tócala y luego toca la maceta: la planta crece.</span></div>
-  <p>Desliza para subir y bajar por la planta. Toca el radar para saltar a otra altura. Si la planta llega hasta arriba, pasas de nivel.</p>
-  <div class="btnUI" id="btnJugar">JUGAR</div>
+  <div class="hint"><svg viewBox="0 0 40 40"><rect x="16" y="4" width="8" height="32" rx="4" fill="#4A1D63" stroke="#fff" stroke-width="1.5"/><circle cx="20" cy="12" r="3" fill="#9BD44B"/><circle cx="20" cy="24" r="3" fill="#FF4136"/><path d="M7 14 l4 -6 4 6 M7 26 l4 6 4 -6" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>Desliza</b> para recorrer la planta y toca el <b>radar</b> para saltar de altura. Toca tu <b>herramienta</b> para cambiarla. Si la planta llega hasta arriba, subes de nivel.</span></div>
+  <div style="display:flex;gap:10px">
+    <div class="btnUI" id="btnTutorial">TUTORIAL</div>
+    <div class="btnUI" id="btnJugar">JUGAR</div>
+  </div>
   <p id="verLabel" style="opacity:.45;font-size:12px;letter-spacing:1px"></p>
 </div>
 
@@ -156,7 +176,7 @@
 </div>
 
 <script>
-const VERSION = 'v1.4';
+const VERSION = 'v1.6';
 /* ══════════════════════════════════════════════════════════
    CHÍCHAROS MÁGICOS · minijuego Liquits
    ── CFG: todos los tiempos y dificultad se ajustan aquí ──
@@ -252,7 +272,7 @@ const S = {
   tPea:2, tMosca:3, tEscarabajo:10, tLib:8, tEgi:14, tJarra:6,
   jarraLista:false, jarraTimer:0, jarraEnMano:false,
   tPajaro:2, tGrillo:1,
-  musica:true, tiempo:0, rota:null, donovan:null,
+  musica:true, tiempo:0, rota:null, donovan:null, celebrando:false, tCohete:0, tutorial:null,
 };
 
 /* ─── lienzo ─── */
@@ -529,20 +549,81 @@ function ponerHerramienta(){
   $('nombreHerr').textContent = h.nombre;
   beep(300+S.herr*80,.06,'triangle',.08);
 }
-$('flechaIzq').onclick = ()=>{ if(S.jarraEnMano) perderJarra(); const n=herrActivas().length; S.herr=(S.herr+n-1)%n; ponerHerramienta(); };
-$('flechaDer').onclick = ()=>{ if(S.jarraEnMano) perderJarra(); const n=herrActivas().length; S.herr=(S.herr+1)%n; ponerHerramienta(); };
+$('herramienta').onclick = ()=>{
+  if(S.jarraEnMano){
+    if(S.tutorial) return; // en tutorial la jarra no se pierde
+    perderJarra();
+  }
+  const n=herrActivas().length;
+  S.herr=(S.herr+1)%n;
+  ponerHerramienta();
+};
 $('btnMusica').onclick = ()=>{ S.musica=!S.musica; $('btnMusica').textContent = S.musica?'♪ ON':'♪ OFF'; };
 $('btnSalir').onclick = ()=>{ guardar(); $('resumenSalida').textContent = S.chicharos+' chícharos · nivel '+S.nivel; $('salida').classList.remove('oculto'); S.jugando=false; };
 $('btnVolver').onclick = ()=>{ $('salida').classList.add('oculto'); S.jugando=true; };
 $('btnInter').onclick = ()=>{ $('interNivel').classList.add('oculto'); S.jugando=true; beep(520,.1); };
 $('btnOtra').onclick = ()=>{
   $('victoria').classList.add('oculto');
+  S.celebrando=false; S.fx=[];
   S.nivel=1; S.segs=CFG.SEGS_INICIO; S.cam=0;
   S.peas=[]; S.bichos=[]; S.donovan=null;
   S.herr=0; ponerHerramienta(); guardar();
   S.jugando=true;
 };
 $('btnJugar').onclick = ()=>{ $('inicio').classList.add('oculto'); S.jugando=true; if(AC&&AC.state==='suspended')AC.resume(); beep(520,.1); };
+/* ─── tutorial guiado: cosechar → defender → regar ─── */
+function tutoBanner(txt){ const b=$('tuto'); b.textContent=txt||''; b.style.display=txt?'block':'none'; }
+function peaTutorial(){
+  const wy = Math.min(alturaPlanta()-60, Math.max(CFG.SEG*0.8, (H-GRASS)*0.55));
+  const pea = {wy, lado:1, edad:2, r:6, id:Math.random()};
+  S.peas.push(pea);
+  return pea;
+}
+function iniciarTutorial(){
+  $('inicio').classList.add('oculto');
+  S.tutorial={paso:0};
+  S.segs=3; S.cam=0; S.peas=[]; S.bichos=[]; S.donovan=null;
+  S.jarraLista=false; S.jarraEnMano=false; $('slotJarra').classList.remove('lista');
+  S.herr=0; ponerHerramienta();
+  S.jugando=true;
+  tutoPaso(1);
+}
+function tutoPaso(n){
+  if(!S.tutorial) return;
+  S.tutorial.paso=n;
+  if(n===1){
+    peaTutorial();
+    tutoBanner('Esa bolita verde en la planta es un chícharo mágico. Con la RED elegida, tócalo para cosecharlo.');
+  } else if(n===2){
+    beep(660,.1);
+    const pea = peaTutorial();
+    S.bichos.push({tipo:'mosca', arma:'matamoscas', x:-60, wy:pea.wy, objetivo:pea.id, estado:'vuela', come:0, fase:0, vida:0});
+    tutoBanner('¡Una mosca quiere comérselo! Toca tu herramienta (abajo a la derecha) hasta que salga el MATAMOSCAS, y luego toca la mosca.');
+  } else if(n===3){
+    beep(760,.12);
+    S.jarraLista=true; S.jarraTimer=99999; $('slotJarra').classList.add('lista');
+    tutoBanner('¡Muy bien! Ahora apareció la jarra de agua de frutas: tócala en el panel de la derecha.');
+  } else if(n===4){
+    tutoBanner('Ya la tienes. Baja hasta el suelo y toca la maceta para regar: la planta crecerá.');
+  }
+}
+function finalizarTutorial(){
+  tutoBanner('');
+  S.jugando=false;
+  setTimeout(()=>$('tutoFin').classList.remove('oculto'), 700);
+}
+function salirTutorial(alJuego){
+  $('tutoFin').classList.add('oculto');
+  S.tutorial=null;
+  S.segs=CFG.SEGS_INICIO; S.cam=0; S.peas=[]; S.bichos=[]; S.donovan=null;
+  S.jarraLista=false; S.jarraEnMano=false; $('slotJarra').classList.remove('lista'); S.tJarra=6;
+  ponerHerramienta();
+  if(alJuego){ S.jugando=true; }
+  else { S.jugando=false; $('inicio').classList.remove('oculto'); }
+}
+$('btnTutorial').onclick = ()=>{ iniciarTutorial(); beep(520,.1); };
+$('btnTutoJugar').onclick = ()=>{ salirTutorial(true); beep(520,.1); };
+$('btnTutoInicio').onclick = ()=>{ salirTutorial(false); };
 $('slotJarra').innerHTML = SVG.jarra;
 ponerHerramienta();
 
@@ -631,8 +712,10 @@ function tomarJarra(){
   $('nombreHerr').textContent = 'JARRA';
   beep(560,.08);
   fxTexto(ejePlanta(), H-GRASS-150, 'BAJA Y TOCA LA MACETA','#FFF');
+  if(S.tutorial && S.tutorial.paso===3) tutoPaso(4);
 }
 function perderJarra(){
+  if(S.tutorial) return; // en el tutorial la jarra es paciente
   S.jarraEnMano = false;
   S.jarraLista = false;
   $('slotJarra').classList.remove('lista');
@@ -663,6 +746,7 @@ function regar(){
   for(let i=0;i<14;i++) S.fx.push({tipo:'gota', x:ejePlanta()+rand(-40,40), y:aPantalla(0)-rand(0,60), vy:rand(60,160), vida:.8});
   S.segs++;
   fxTexto(ejePlanta(), Math.max(60, aPantalla(alturaPlanta())-30), '¡CRECE!', '#9BD44B');
+  if(S.tutorial){ finalizarTutorial(); return; }
   if(S.segs>=metaSegs()){
     if(S.nivel>=CFG.NIVEL_FINAL){
       S.segs = metaSegs(); // altura máxima: ahora todo depende de Donovan
@@ -747,7 +831,7 @@ function tap(x,y){
     if((x-bx)**2+(y-by)**2 < r*r){
       if(h===b.arma){
         b.estado='muerto'; b.vida=0;
-        if(b.tipo==='mosca'){ sndSplat(); fxTexto(bx,by,'¡PAF!','#FF6B57'); }
+        if(b.tipo==='mosca'){ sndSplat(); fxTexto(bx,by,'¡PAF!','#FF6B57'); if(S.tutorial && S.tutorial.paso===2) tutoPaso(3); }
         else if(b.tipo==='escarabajo'){ sndSpray(); fxTexto(bx,by,'¡PSSST!','#BFEAF5'); }
         else if(b.tipo==='libelula'){
           sndZap(); fxTexto(bx,by,'¡ZAS!','#FFE24A');
@@ -779,6 +863,7 @@ function tap(x,y){
         const valor = S.nivel; // en niveles altos los chícharos valen más
         S.chicharos += valor; actualizarContador(); guardar();
         sndAtrapa();
+        if(S.tutorial && S.tutorial.paso===1) tutoPaso(2);
         fxTexto(px,py,'+'+valor,'#9BD44B');
         S.fx.push({tipo:'vuelaPea',x:px,y:py,vida:.6});
       } else {
@@ -796,9 +881,26 @@ let tAnt = performance.now();
 function paso(t){
   const dt = Math.min(.05,(t-tAnt)/1000); tAnt=t;
   if(S.jugando) actualizar(dt);
+  else if(S.celebrando) celebrar(dt);
   actualizarZumbido();
   dibujar(t/1000);
   requestAnimationFrame(paso);
+}
+function celebrar(dt){
+  // la cámara sube sola hasta Donovan en la cima
+  S.cam += (camMax()-S.cam)*Math.min(1, dt*1.8);
+  S.tCohete-=dt;
+  if(S.tCohete<=0){
+    lanzarCohete();
+    S.tCohete = rand(.35,.8);
+  }
+  actualizarFx(dt);
+}
+const COLORES_FIESTA=['#9BD44B','#FFD24A','#7FE3EF','#C77DFF','#FF6B57','#FFFFFF'];
+function lanzarCohete(){
+  S.fx.push({tipo:'cohete', x:RADAR_W+rand(40,W-RADAR_W-60), y:H+20,
+    vy:-rand(420,620), target:rand(H*0.12,H*0.5),
+    c:COLORES_FIESTA[Math.floor(Math.random()*COLORES_FIESTA.length)], vida:3});
 }
 function actualizar(dt){
   S.tiempo+=dt;
@@ -811,7 +913,7 @@ function actualizar(dt){
 
 
   // Donovan aparece en el nivel final y trepa cuando la planta está en paz
-  if(S.nivel>=CFG.NIVEL_FINAL && !S.donovan){
+  if(S.nivel>=CFG.NIVEL_FINAL && !S.donovan && !S.tutorial){
     S.donovan = {wy:50, cayo:0};
     const av=$('avisoNivel');
     av.textContent='¡DONOVAN COMIENZA A TREPAR!';
@@ -828,6 +930,7 @@ function actualizar(dt){
     if(S.segs>=metaSegs() && S.donovan.wy >= metaSegs()*CFG.SEG-60) victoria();
   }
 
+  if(!S.tutorial){
   S.tPea-=dt; if(S.tPea<=0){ nuevaPea(); S.tPea=tasa(CFG.PEA_CADA)*Math.max(0.55, 8/Math.max(8,S.segs)); }
   S.tMosca-=dt; if(S.tMosca<=0){ nuevaMosca(); S.tMosca=tasa(CFG.MOSCA_CADA); }
   if(S.nivel>=2){ S.tEscarabajo-=dt; if(S.tEscarabajo<=0){ nuevoEscarabajo(); S.tEscarabajo=tasa(CFG.ESCARABAJO_CADA); } }
@@ -842,6 +945,7 @@ function actualizar(dt){
     S.jarraTimer-=dt;
     if(S.jarraTimer<=0){ S.jarraLista=false; $('slotJarra').classList.remove('lista'); S.tJarra=CFG.JARRA_CADA; }
   }
+  } // fin gate tutorial
 
   // chícharos maduran
   for(const p of S.peas){ p.edad+=dt; p.r=Math.min(6,p.edad*4); }
@@ -858,7 +962,7 @@ function actualizar(dt){
         const d = Math.hypot(dx,dy);
         if(d>26){ b.estado='vuela'; b.x+=dx/d*90*V()*dt; b.wy+=dy/d*90*V()*dt; b.come=0; }
         else {
-          b.estado='come'; b.come+=dt;
+          b.estado='come'; if(!S.tutorial) b.come+=dt;
           if(b.come>CFG.COMER_SEG/V()){
             const idx=S.peas.indexOf(obj);
             if(idx>=0){ S.peas.splice(idx,1); fxTexto(b.x,aPantalla(b.wy),'ÑAM…','#FF6B57'); }
@@ -916,15 +1020,30 @@ function actualizar(dt){
     }
   }
 
-  // fx
+  actualizarFx(dt);
+  if(S.rota){ S.rota.vida-=dt; if(S.rota.vida<=0) S.rota=null; }
+}
+function actualizarFx(dt){
   for(let i=S.fx.length-1;i>=0;i--){
     const f=S.fx[i]; f.vida-=dt;
     if(f.tipo==='chispa'){ f.x+=f.vx*dt; f.y+=f.vy*dt; f.vy+=400*dt; }
     if(f.tipo==='gota'){ f.y+=f.vy*dt; }
     if(f.tipo==='texto'){ f.y-=40*dt; }
+    if(f.tipo==='cohete'){
+      f.y+=f.vy*dt;
+      if(f.y<=f.target){
+        // explosión
+        for(let k=0;k<22;k++){
+          const a=Math.random()*Math.PI*2, v=rand(90,260);
+          S.fx.push({tipo:'chispa', x:f.x, y:f.y, vx:Math.cos(a)*v, vy:Math.sin(a)*v-40, vida:rand(.6,1.1), c:f.c});
+        }
+        beep(rand(500,900),.12,'sine',.1);
+        S.fx.splice(i,1);
+        continue;
+      }
+    }
     if(f.vida<=0) S.fx.splice(i,1);
   }
-  if(S.rota){ S.rota.vida-=dt; if(S.rota.vida<=0) S.rota=null; }
 }
 function romperPlanta(wy){
   sndCrack();
@@ -943,10 +1062,15 @@ function romperPlanta(wy){
 }
 function victoria(){
   S.jugando=false;
+  S.celebrando=true; S.tCohete=0.3;
   S.chicharos += 100; actualizarContador(); guardar();
   $('resumenVictoria').textContent = S.chicharos+' chícharos · +100 de premio';
-  $('victoria').classList.remove('oculto');
-  sndNivel(); setTimeout(sndNivel,600);
+  fanfarria();
+  setTimeout(()=>{ $('victoria').classList.remove('oculto'); }, 2800);
+}
+function fanfarria(){
+  [523,659,784,1046,784,1046,1318].forEach((f,i)=>setTimeout(()=>beep(f,.22,'sine',.18), i*160));
+  setTimeout(()=>{[392,523,659,784].forEach((f,i)=>setTimeout(()=>beep(f,.3,'triangle',.12), i*120))}, 1300);
 }
 
 /* ─── dibujo ─── */
@@ -1053,6 +1177,12 @@ function dibujar(t){
       cx.globalAlpha=Math.max(0,f.vida);
       cx.fillStyle='#6FC3F7'; cx.beginPath(); cx.ellipse(f.x,f.y,3,6,0,0,7); cx.fill();
       cx.globalAlpha=1;
+    } else if(f.tipo==='cohete'){
+      cx.strokeStyle=f.c; cx.lineWidth=3; cx.globalAlpha=.8;
+      cx.beginPath(); cx.moveTo(f.x,f.y+26); cx.lineTo(f.x,f.y); cx.stroke();
+      cx.fillStyle='#fff';
+      cx.beginPath(); cx.arc(f.x,f.y,3.5,0,7); cx.fill();
+      cx.globalAlpha=1;
     } else if(f.tipo==='vuelaPea'){
       cx.globalAlpha=Math.max(0,f.vida);
       const q=1-f.vida/.6;
@@ -1140,7 +1270,9 @@ function dibujarDonovan(t){
   cx.save();
   cx.translate(x, sy+bob);
   if(d.cayo>0) cx.translate(Math.sin(t*40)*3,0); // sacudida al caer
-  donovanFigura(brazo);
+  const salta = S.celebrando ? Math.abs(Math.sin(t*5))*-14 : 0;
+  cx.translate(0, salta);
+  donovanFigura(brazo, S.celebrando);
   cx.restore();
   // burbuja pidiendo agua cuando alcanza la punta y la planta aún no llega a la meta
   if(!trepa && !peligro && S.segs<metaSegs() && d.wy>=alturaPlanta()-58){
@@ -1152,7 +1284,7 @@ function dibujarDonovan(t){
     }
   }
 }
-function donovanFigura(brazo){
+function donovanFigura(brazo, festeja){
   // piernas (mezclilla), de espaldas, flexionadas sobre el tallo
   cx.strokeStyle='#3E5A8A'; cx.lineWidth=9; cx.lineCap='round';
   cx.beginPath(); cx.moveTo(-6,18); cx.lineTo(-16,30+brazo*3); cx.lineTo(-12,42); cx.stroke();
@@ -1165,13 +1297,19 @@ function donovanFigura(brazo){
   cx.beginPath();
   cx.moveTo(-13,-6); cx.quadraticCurveTo(0,-12,13,-6);
   cx.lineTo(11,20); cx.quadraticCurveTo(0,25,-11,20); cx.closePath(); cx.fill();
-  // brazos abrazando el tallo, alternándose al trepar
+  // brazos: abrazando el tallo al trepar, o al cielo si festeja
   cx.strokeStyle='#C4452B'; cx.lineWidth=8;
-  cx.beginPath(); cx.moveTo(-11,-2); cx.quadraticCurveTo(-20,-14-brazo*5,-6,-22-brazo*6); cx.stroke();
-  cx.beginPath(); cx.moveTo(11,-2); cx.quadraticCurveTo(20,-14+brazo*5,6,-22+brazo*6); cx.stroke();
-  // manos
-  cx.fillStyle='#E8B08A';
-  cx.beginPath(); cx.arc(-6,-23-brazo*6,4.5,0,7); cx.arc(6,-23+brazo*6,4.5,0,7); cx.fill();
+  if(festeja){
+    cx.beginPath(); cx.moveTo(-11,-2); cx.quadraticCurveTo(-22,-18,-18,-36); cx.stroke();
+    cx.beginPath(); cx.moveTo(11,-2); cx.quadraticCurveTo(22,-18,18,-36); cx.stroke();
+    cx.fillStyle='#E8B08A';
+    cx.beginPath(); cx.arc(-18,-38,4.5,0,7); cx.arc(18,-38,4.5,0,7); cx.fill();
+  } else {
+    cx.beginPath(); cx.moveTo(-11,-2); cx.quadraticCurveTo(-20,-14-brazo*5,-6,-22-brazo*6); cx.stroke();
+    cx.beginPath(); cx.moveTo(11,-2); cx.quadraticCurveTo(20,-14+brazo*5,6,-22+brazo*6); cx.stroke();
+    cx.fillStyle='#E8B08A';
+    cx.beginPath(); cx.arc(-6,-23-brazo*6,4.5,0,7); cx.arc(6,-23+brazo*6,4.5,0,7); cx.fill();
+  }
   // cabeza de espaldas: pura melena
   cx.fillStyle='#E8B08A';
   cx.beginPath(); cx.arc(0,-18,10,0,7); cx.fill();
